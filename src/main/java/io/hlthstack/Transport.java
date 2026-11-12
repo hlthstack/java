@@ -121,7 +121,7 @@ final class Transport {
 
     Call query(Map<String, ?> query) {
       if (query == null) throw new IllegalArgumentException("query parameters must not be null");
-      this.query = Json.toTree(query);
+      this.query = joinLists(Json.toTree(query));
       return this;
     }
 
@@ -166,6 +166,24 @@ final class Transport {
       return out;
     }
     return Json.toTree(value);
+  }
+
+  /**
+   * Lists in a query are sent comma-separated ({@code package_ids=1001,1002}), so they are joined
+   * before validation, which then checks the value as it goes out.
+   */
+  static JsonNode joinLists(JsonNode node) {
+    if (node.isObject()) {
+      ObjectNode out = Json.MAPPER.createObjectNode();
+      node.fields().forEachRemaining(e -> out.set(e.getKey(), joinLists(e.getValue())));
+      return out;
+    }
+    if (node.isArray()) {
+      List<String> items = new ArrayList<>();
+      for (JsonNode item : node) if (!item.isNull()) items.add(scalar(item));
+      return TextNode.valueOf(String.join(",", items));
+    }
+    return node;
   }
 
   static String encodeSegment(String value) {
@@ -324,14 +342,7 @@ final class Transport {
       }
       return;
     }
-    String text;
-    if (value.isArray()) {
-      List<String> items = new ArrayList<>();
-      for (JsonNode item : value) if (!item.isNull()) items.add(scalar(item));
-      text = String.join(",", items);
-    } else {
-      text = scalar(value);
-    }
+    String text = value.isArray() ? joinLists(value).asText() : scalar(value);
     pairs.add(URLEncoder.encode(key, StandardCharsets.UTF_8) + "=" + URLEncoder.encode(text, StandardCharsets.UTF_8));
   }
 

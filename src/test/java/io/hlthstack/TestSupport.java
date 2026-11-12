@@ -57,7 +57,7 @@ public final class TestSupport {
 
   public static JsonNode json(String text) {
     try {
-      return Json.MAPPER.readTree(text);
+      return new com.fasterxml.jackson.databind.ObjectMapper().readTree(text);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
