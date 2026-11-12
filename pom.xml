@@ -108,7 +108,8 @@
         </configuration>
       </plugin>
 
-      <!-- The plain REST API examples (examples/api) are compiled and tested with the tests. -->
+      <!-- The examples are compiled with the tests; the plain REST API ones (examples/api) are
+           also run against a mock server (src/test/java/PlainApiExamplesTest.java). -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
@@ -123,6 +124,7 @@
             <configuration>
               <sources>
                 <source>examples/api</source>
+                <source>examples/sdk</source>
               </sources>
             </configuration>
           </execution>

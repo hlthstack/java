@@ -13,7 +13,7 @@ public class ValidationException extends HlthstackException {
   private static final long serialVersionUID = 1L;
 
   private final String operationId;
-  private final List<ValidationIssue> errors;
+  private final transient List<ValidationIssue> errors;
 
   ValidationException(String operationId, List<ValidationIssue> errors) {
     super(describe(operationId, errors), lines(errors));

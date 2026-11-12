@@ -31,7 +31,7 @@ class PreRegistrationTest {
   }
 
   @Test
-  void usesItsOwnCredentialsAndSendsTheRawTokenAsXEkincareKey() {
+  void usesItsOwnCredentialsAndSendsTheRawTokenInItsOwnHeader() {
     Hlthstack client = builder(server).entityId("1001").secretKey("entity-secret").build();
     server.reply("POST", "/v1/corporate/pre_registrations", 200, map("message", "Request has been accepted", "request_id", REQUEST_ID));
     JsonNode accepted = client.preRegistration().create(map("employees", list(employee())));

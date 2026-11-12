@@ -22,8 +22,8 @@ public class HlthstackException extends RuntimeException {
 
   private final int statusCode;
   private final transient JsonNode body;
-  private final Map<String, List<String>> headers;
-  private final List<String> messages;
+  private final transient Map<String, List<String>> headers;
+  private final transient List<String> messages;
 
   HlthstackException(String message) {
     this(message, (Throwable) null);

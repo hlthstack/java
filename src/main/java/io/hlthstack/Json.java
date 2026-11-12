@@ -5,7 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.cfg.JsonNodeFeature;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
@@ -15,7 +15,7 @@ final class Json {
       new ObjectMapper()
           .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
           .enable(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN)
-          .setNodeFactory(JsonNodeFactory.withExactBigDecimals(true));
+          .configure(JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES, false);
 
   private Json() {}
 
