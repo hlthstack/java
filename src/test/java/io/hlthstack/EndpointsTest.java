@@ -47,8 +47,6 @@ class EndpointsTest {
       "listSlots", "appointments.listSlots",
       "createAppointment", "appointments.create",
       "getAppointment", "appointments.get",
-      "listCustomerAppointments", "appointments.listForCustomer",
-      "getAppointmentPaymentDetails", "appointments.getPaymentDetails",
       "rescheduleBooking", "appointments.rescheduleBooking",
       "cancelBooking", "appointments.cancelBooking",
       "rescheduleAppointment", "appointments.reschedule",
@@ -104,7 +102,7 @@ class EndpointsTest {
         if (op.has("operationId")) ids.add(op.get("operationId").asText());
       }
     }
-    assertEquals(47, ids.size());
+    assertEquals(45, ids.size());
     assertEquals(ids, new TreeSet<>(METHODS.keySet()));
     assertEquals(ids, new TreeSet<>(iterable(Validator.operations().fieldNames())));
   }
@@ -177,14 +175,6 @@ class EndpointsTest {
     c.add(new Case("getAppointment",
         h -> h.appointments().get(map("booking_id", "EKI0000000001700000000", "appointment_id", apt)),
         "GET", "/api/appointments", "booking_id=EKI0000000001700000000&appointment_id=APT1A2B3C4D5", null));
-    c.add(new Case("listCustomerAppointments",
-        h -> h.appointments().listForCustomer(map("api_customer_id", "CUST1001", "status", "confirmed")),
-        "GET", "/api/appointments/customer_appointments", "api_customer_id=CUST1001&status=confirmed", null));
-    c.add(new Case("getAppointmentPaymentDetails",
-        h -> h.appointments().getPaymentDetails(map("provider_id", 1001, "appointment_type", "inclinic", "service_name", "ahc",
-            "customers", list(map("api_customer_id", "CUST1001", "package_ids", list(1001))))),
-        "POST", "/api/appointments/payment_details", null,
-        "{\"provider_id\":1001,\"appointment_type\":\"inclinic\",\"service_name\":\"ahc\",\"customers\":[{\"api_customer_id\":\"CUST1001\",\"package_ids\":[1001]}]}"));
     c.add(new Case("rescheduleBooking",
         h -> h.appointments().rescheduleBooking("EKI0000000001700000000", map("appointment_date_time", "2030-01-16T02:30:00Z")),
         "PATCH", "/api/bookings/EKI0000000001700000000/reschedule", null, "{\"appointment_date_time\":\"2030-01-16T02:30:00Z\"}"));

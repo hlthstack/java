@@ -61,12 +61,6 @@ createAppointment:
     text: [address_line_one, address_line_two, city, state, country]
     pincode: [pincode]
 
-listCustomerAppointments:
-  - rule: at_least_one_of
-    description: Send api_customer_id or employee_id.
-    fields: [api_customer_id, employee_id]
-    groups: [[api_customer_id], [employee_id]]
-
 rescheduleBooking:
   - rule: no_conflicting_pincode
     description: When address is sent for a home-collection booking, address_line_one, address_line_two, city, state and country must not contain a 6-digit pincode other than address.pincode.

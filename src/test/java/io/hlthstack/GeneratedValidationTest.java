@@ -45,7 +45,7 @@ class GeneratedValidationTest {
 
   @Test
   void failsWhenARuleChanges(@TempDir Path dir) throws Exception {
-    String message = failure(dir, spec().replace("Send api_customer_id or employee_id.", "Send api_customer_id."));
+    String message = failure(dir, spec().replace("Send api_customer_id or customer_id.", "Send api_customer_id."));
     assertTrue(message.contains("description differs from rules.yaml"), message);
   }
 

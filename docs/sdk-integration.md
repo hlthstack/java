@@ -242,8 +242,6 @@ Method names follow the spec's `operationId`s, grouped by area.
 | | `listSlots(providerId, benefitType, query)` | listSlots | `GET /api/providers/{provider_id}/{benefit_type}/slots` |
 | | `create(body)` | createAppointment | `POST /api/appointments` |
 | | `get(query)` | getAppointment | `GET /api/appointments` |
-| | `listForCustomer(query)` | listCustomerAppointments | `GET /api/appointments/customer_appointments` |
-| | `getPaymentDetails(body)` | getAppointmentPaymentDetails | `POST /api/appointments/payment_details` |
 | | `rescheduleBooking(bookingId, body)` | rescheduleBooking | `PATCH /api/bookings/{booking_id}/reschedule` |
 | | `cancelBooking(bookingId)` | cancelBooking | `PATCH /api/bookings/{booking_id}/cancel` |
 | | `reschedule(appointmentId, body)` | rescheduleAppointment | `PATCH /api/appointments/{appointment_id}/reschedule` |

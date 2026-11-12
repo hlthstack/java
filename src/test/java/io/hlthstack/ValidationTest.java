@@ -159,7 +159,7 @@ class ValidationTest {
         }
       }
     }
-    assertEquals(20, tests.size());
+    assertEquals(19, tests.size());
     return tests.stream();
   }
 
@@ -427,8 +427,8 @@ class ValidationTest {
     @Test
     void atLeastOneOfAtTheTopLevelPerArrayItemAndInsideAnOptionalObject() {
       assertEquals(
-          List.of(issue("", "at_least_one_of", "send at least one of api_customer_id, employee_id")),
-          issues("listCustomerAppointments", in().query(map("status", "confirmed"))));
+          List.of(issue("", "at_least_one_of", "send at least one of api_customer_id, customer_id")),
+          issues("listCustomerPlans", in().params(map("company_slug", "example-co")).query(map())));
       Map<String, Object> dependant = map(
           "first_name", "John", "last_name", "Doe", "date_of_birth", "", "gender", "", "mobile_number", "", "relation", "",
           "guardian_email", " ");
@@ -650,8 +650,6 @@ class ValidationTest {
     Map<String, Object> noAddress = bodyExample("createAppointment");
     noAddress.remove("address");
     cases.put("createAppointment", new Case(in().body(bodyExample("createAppointment")), in().body(noAddress), "address required_if"));
-    cases.put("listCustomerAppointments", new Case(
-        in().query(map("employee_id", "EMP1001")), in().query(map("api_customer_id", " ")), " at_least_one_of"));
     cases.put("rescheduleBooking", new Case(
         in().params(bookingId).body(bodyExample("rescheduleBooking")),
         in().params(bookingId).body(map("appointment_date_time", "2030-01-16T02:30:00Z", "address", with(address, "address_line_one", "Road 560001"))),

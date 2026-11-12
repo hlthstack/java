@@ -62,31 +62,6 @@ public final class Appointments {
     return transport.json(new Transport.Call("getAppointment", "GET", "/api/appointments").query(query), options);
   }
 
-  /**
-   * {@code GET /api/appointments/customer_appointments} (listCustomerAppointments). Up to 50,
-   * newest first. Pass {@code api_customer_id} or {@code employee_id}.
-   */
-  public JsonNode listForCustomer(Map<String, ?> query) {
-    return listForCustomer(query, RequestOptions.NONE);
-  }
-
-  public JsonNode listForCustomer(Map<String, ?> query, RequestOptions options) {
-    return transport.json(
-        new Transport.Call("listCustomerAppointments", "GET", "/api/appointments/customer_appointments").query(query),
-        options);
-  }
-
-  /** {@code POST /api/appointments/payment_details} (getAppointmentPaymentDetails). Quotes without booking. */
-  public JsonNode getPaymentDetails(Map<String, ?> body) {
-    return getPaymentDetails(body, RequestOptions.NONE);
-  }
-
-  public JsonNode getPaymentDetails(Map<String, ?> body, RequestOptions options) {
-    return transport.json(
-        new Transport.Call("getAppointmentPaymentDetails", "POST", "/api/appointments/payment_details").body(body),
-        options);
-  }
-
   /** {@code PATCH /api/bookings/{booking_id}/reschedule} (rescheduleBooking). May partially succeed. */
   public JsonNode rescheduleBooking(String bookingId, Map<String, ?> body) {
     return rescheduleBooking(bookingId, body, RequestOptions.NONE);
