@@ -1,0 +1,5 @@
+# JitPack builds this repository when a project depends on com.github.hlthstack:java:<tag-or-commit>.
+jdk:
+  - openjdk17
+install:
+  - ./mvnw -B -q install -DskipTests

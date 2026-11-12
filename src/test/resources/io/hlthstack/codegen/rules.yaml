@@ -1,0 +1,303 @@
+# Every x-hlthstack-rules entry of openapi/openapi.yaml, restated as parameters the validator
+# (src/main/java/io/hlthstack/Validator.java) applies. Read by BuildValidation.
+#
+# Entries are listed per operationId in the spec's order. `rule`, `description` and `fields`
+# must equal the spec's exactly: when the spec changes a rule, BuildValidation stops and you
+# restate it here. The other keys are what the validator reads:
+#
+#   required_if         when: {field, blank: true | equals: v | notEquals: v}, required: [field...]
+#   allowed_only_if     when, allowed: [field...]
+#   at_least_one_of     scope (optional container path), groups: [[field...]...] (one group must be complete)
+#   mutually_exclusive  exclusive: [field...]
+#   unique_by           array, key
+#   relative_date       targets: [path...]; before: today + years (on or before), or after: now
+#                       + defaultOffset (for date-times without one); unless (optional condition)
+#   no_conflicting_pincode  address, text: [field...], pincode: [field...], when (optional)
+#   file_limits         files (path), maxBytes, contentTypes, extensions, match: all | any
+#   item_count          arrays: [path...], min, max
+#   positive_decimal    targets: [path...]
+#
+# Paths are dotted; `name[]` steps into every item of an array.
+
+listProviders:
+  - rule: required_if
+    description: When pincode is not sent, latitude and longitude are both required (the pincode is derived from them).
+    fields: [pincode, latitude, longitude]
+    when: {field: pincode, blank: true}
+    required: [latitude, longitude]
+  - rule: allowed_only_if
+    description: sort_by and gender are accepted only when service_name is inclinic_consultation.
+    fields: [sort_by, gender, service_name]
+    when: {field: service_name, equals: inclinic_consultation}
+    allowed: [sort_by, gender]
+  - rule: required_if
+    description: api_customer_id is required when sort_by is visited_before.
+    fields: [api_customer_id, sort_by]
+    when: {field: sort_by, equals: visited_before}
+    required: [api_customer_id]
+
+createAppointment:
+  - rule: required_if
+    description: address is required when appointment_type is home_collection.
+    fields: [address, appointment_type]
+    when: {field: appointment_type, equals: home_collection}
+    required: [address]
+  - rule: unique_by
+    description: Each customer needs its own api_customer_id.
+    fields: ['customers[].api_customer_id']
+    array: customers
+    key: api_customer_id
+  - rule: relative_date
+    description: Each customer's dob must be on or before the same date one year ago (members must be at least 1 year old).
+    fields: ['customers[].dob']
+    targets: ['customers[].dob']
+    before: today
+    years: -1
+  - rule: no_conflicting_pincode
+    description: Home collection only. address_line_one, address_line_two, city, state and country must not contain a 6-digit pincode other than address.pincode.
+    fields: [address.address_line_one, address.address_line_two, address.city, address.state, address.country, address.pincode]
+    when: {field: appointment_type, equals: home_collection}
+    address: address
+    text: [address_line_one, address_line_two, city, state, country]
+    pincode: [pincode]
+
+listCustomerAppointments:
+  - rule: at_least_one_of
+    description: Send api_customer_id or employee_id.
+    fields: [api_customer_id, employee_id]
+    groups: [[api_customer_id], [employee_id]]
+
+rescheduleBooking:
+  - rule: no_conflicting_pincode
+    description: When address is sent for a home-collection booking, address_line_one, address_line_two, city, state and country must not contain a 6-digit pincode other than address.pincode.
+    fields: [address.address_line_one, address.address_line_two, address.city, address.state, address.country, address.pincode]
+    address: address
+    text: [address_line_one, address_line_two, city, state, country]
+    pincode: [pincode]
+
+rescheduleAppointment:
+  - rule: no_conflicting_pincode
+    description: When address is sent for a home-collection appointment, address_line_one, address_line_two, city, state and country must not contain a 6-digit pincode other than address.pincode.
+    fields: [address.address_line_one, address.address_line_two, address.city, address.state, address.country, address.pincode]
+    address: address
+    text: [address_line_one, address_line_two, city, state, country]
+    pincode: [pincode]
+
+listInclinicConsultationProviders:
+  - rule: required_if
+    description: When pincode is not sent, latitude and longitude are both required (the pincode is derived from them).
+    fields: [pincode, latitude, longitude]
+    when: {field: pincode, blank: true}
+    required: [latitude, longitude]
+  - rule: required_if
+    description: api_customer_id is required when sort_by is visited_before.
+    fields: [api_customer_id, sort_by]
+    when: {field: sort_by, equals: visited_before}
+    required: [api_customer_id]
+
+createInclinicConsultation:
+  - rule: unique_by
+    description: Each customer needs its own api_customer_id.
+    fields: ['customers[].api_customer_id']
+    array: customers
+    key: api_customer_id
+  - rule: relative_date
+    description: Each customer's dob must be on or before the same date one year ago (members must be at least 1 year old).
+    fields: ['customers[].dob']
+    targets: ['customers[].dob']
+    before: today
+    years: -1
+  - rule: relative_date
+    description: appointment_date_time must be later than now (a time without an offset is read as IST).
+    fields: [appointment_date_time]
+    targets: [appointment_date_time]
+    after: now
+    defaultOffset: '+05:30'
+
+createSpecialistConsultation:
+  - rule: required_if
+    description: appointment_date_time is required unless priority_consultation is true.
+    fields: [appointment_date_time, priority_consultation]
+    when: {field: priority_consultation, notEquals: true}
+    required: [appointment_date_time]
+  - rule: relative_date
+    description: Unless priority_consultation is true, appointment_date_time must be later than now (a time without an offset is read as IST).
+    fields: [appointment_date_time, priority_consultation]
+    targets: [appointment_date_time]
+    after: now
+    defaultOffset: '+05:30'
+    unless: {field: priority_consultation, equals: true}
+  - rule: unique_by
+    description: Each customer needs its own api_customer_id.
+    fields: ['customers[].api_customer_id']
+    array: customers
+    key: api_customer_id
+  - rule: relative_date
+    description: Each customer's dob must be on or before the same date one year ago (members must be at least 1 year old).
+    fields: ['customers[].dob']
+    targets: ['customers[].dob']
+    before: today
+    years: -1
+
+rescheduleConsultation:
+  - rule: relative_date
+    description: appointment_date_time must be later than now (a time without an offset is read as IST).
+    fields: [appointment_date_time]
+    targets: [appointment_date_time]
+    after: now
+    defaultOffset: '+05:30'
+
+uploadConsultationDocuments:
+  # "Every file entry needs a name and a value" is the nested form schema's `required`.
+  - rule: item_count
+    description: At least one file; every file entry needs both a non-blank name and a value.
+    fields: ['files[][name]', 'files[][value]']
+    arrays: [files]
+    min: 1
+  # "Not password-protected" cannot be told reliably without parsing the PDF: left to the server.
+  - rule: file_limits
+    description: Each file must be PDF, JPEG or PNG (extension pdf, jpg, jpeg or png) and not password-protected.
+    fields: ['files[][value]']
+    files: 'files[].value'
+    extensions: [pdf, jpg, jpeg, png]
+
+digitizePrescription:
+  - rule: item_count
+    description: customers must contain exactly one customer.
+    fields: [customers]
+    arrays: [customers]
+    min: 1
+    max: 1
+  - rule: item_count
+    description: files[] must contain at least one file.
+    fields: ['files[]']
+    arrays: [files]
+    min: 1
+  - rule: file_limits
+    description: Each file at most 10 MB, with content type image/jpeg, image/png or application/pdf.
+    fields: ['files[]']
+    files: 'files[]'
+    maxBytes: 10485760
+    contentTypes: [image/jpeg, image/png, application/pdf]
+  - rule: relative_date
+    description: dob must not be after today.
+    fields: ['customers[][dob]']
+    targets: ['customers[].dob']
+    before: today
+    years: 0
+
+updateCart:
+  - rule: at_least_one_of
+    description: Send at least one change (products, address or address_id, prescription_urls or prescription_files, remove_prescription_ids, fulfillment_type or selected_chemist_id).
+    fields: [products, address, address_id, prescription_urls, prescription_files, remove_prescription_ids, fulfillment_type, selected_chemist_id]
+    groups: [[products], [address], [address_id], [prescription_urls], [prescription_files], [remove_prescription_ids], [fulfillment_type], [selected_chemist_id]]
+  - rule: mutually_exclusive
+    description: Send either address or address_id, not both.
+    fields: [address, address_id]
+    exclusive: [address, address_id]
+  # The "cart is already store pickup" half depends on stored data: left to the server.
+  - rule: required_if
+    description: selected_chemist_id is required when fulfillment_type is store_pickup (or the cart is already store pickup and fulfillment_type is not sent).
+    fields: [selected_chemist_id, fulfillment_type]
+    when: {field: fulfillment_type, equals: store_pickup}
+    required: [selected_chemist_id]
+  - rule: unique_by
+    description: Each product id may appear only once.
+    fields: ['products[].id']
+    array: products
+    key: id
+  - rule: at_least_one_of
+    description: A new address needs pincode or zip_code.
+    fields: [address.pincode, address.zip_code]
+    scope: address
+    groups: [[pincode], [zip_code]]
+  # Files fetched from prescription_urls are checked by the server. How the type of an upload
+  # is told is not specified, so a matching content type or extension is enough.
+  - rule: file_limits
+    description: Each prescription file must be smaller than 7 MB and be PDF, PNG or JPEG; files fetched from prescription_urls must also be smaller than 7 MB and served as application/pdf, image/png or image/jpeg.
+    fields: [prescription_files, prescription_urls]
+    files: 'prescription_files[]'
+    maxBytes: 7340031
+    contentTypes: [application/pdf, image/png, image/jpeg]
+    extensions: [pdf, png, jpg, jpeg]
+    match: any
+  - rule: no_conflicting_pincode
+    description: A new address's line1, line2, city, state and country must not contain a 6-digit pincode other than its pincode.
+    fields: [address.line1, address.line2, address.city, address.state, address.country, address.pincode]
+    address: address
+    text: [line1, line2, city, state, country]
+    pincode: [pincode, zip_code]
+
+getOrderPaymentDetails:
+  # "Must match the store saved on the cart" depends on stored data: left to the server.
+  - rule: required_if
+    description: selected_chemist_id is required when selected_delivery_option is store_pickup (and must match the store saved on the cart).
+    fields: [selected_chemist_id, selected_delivery_option]
+    when: {field: selected_delivery_option, equals: store_pickup}
+    required: [selected_chemist_id]
+
+confirmOrder:
+  # "Must equal the order's amount_to_collect" depends on stored data: left to the server.
+  - rule: positive_decimal
+    description: partner_collected_amount must be a decimal greater than 0 (it must also equal the order's amount_to_collect).
+    fields: [partner_collected_amount]
+    targets: [partner_collected_amount]
+
+getCustomerWallet:
+  - rule: at_least_one_of
+    description: Send api_customer_id or customer_id.
+    fields: [api_customer_id, customer_id]
+    groups: [[api_customer_id], [customer_id]]
+
+listCustomerPlans:
+  - rule: at_least_one_of
+    description: Send api_customer_id or customer_id.
+    fields: [api_customer_id, customer_id]
+    groups: [[api_customer_id], [customer_id]]
+
+createPreRegistrations:
+  - rule: item_count
+    description: At most 250 rows in employees and dependants together.
+    fields: [employees, dependants]
+    arrays: [employees, dependants]
+    max: 250
+  - rule: at_least_one_of
+    description: Each employee needs a non-blank email or employee_code.
+    fields: ['employees[].email', 'employees[].employee_code']
+    scope: 'employees[]'
+    groups: [[email], [employee_code]]
+  - rule: at_least_one_of
+    description: Each dependant needs guardian_email, or company_id together with guardian_employee_code.
+    fields: ['dependants[].guardian_email', 'dependants[].guardian_employee_code']
+    scope: 'dependants[]'
+    groups: [[guardian_email], [company_id, guardian_employee_code]]
+  - rule: relative_date
+    description: date_of_birth (when not blank) must not be after today.
+    fields: ['employees[].date_of_birth', 'dependants[].date_of_birth']
+    targets: ['employees[].date_of_birth', 'dependants[].date_of_birth']
+    before: today
+    years: 0
+
+updatePreRegistrations:
+  - rule: item_count
+    description: At most 250 rows in employees and dependants together.
+    fields: [employees, dependants]
+    arrays: [employees, dependants]
+    max: 250
+  - rule: at_least_one_of
+    description: Each employee needs email, or company_id together with employee_code.
+    fields: ['employees[].email', 'employees[].employee_code']
+    scope: 'employees[]'
+    groups: [[email], [company_id, employee_code]]
+  - rule: at_least_one_of
+    description: Each dependant needs api_customer_id, dependent_code or mobile_number.
+    fields: ['dependants[].api_customer_id', 'dependants[].dependent_code', 'dependants[].mobile_number']
+    scope: 'dependants[]'
+    groups: [[api_customer_id], [dependent_code], [mobile_number]]
+
+deactivatePreRegistrations:
+  - rule: item_count
+    description: At most 250 entries in employees and dependants together.
+    fields: [employees, dependants]
+    arrays: [employees, dependants]
+    max: 250
