@@ -748,6 +748,16 @@ class ValidationTest {
     }
 
     @Test
+    void rejectsACancelReasonOver255Characters() {
+      Hlthstack client = TestSupport.client(server);
+      ValidationException e = assertThrows(ValidationException.class,
+          () -> client.appointments().cancel("APT1A2B3C4D5", map("reason", "x".repeat(256))));
+      assertEquals("cancelAppointment", e.operationId());
+      assertTrue(e.errors().toString().contains("reason"), e.errors().toString());
+      assertEquals(0, server.apiCalls().size());
+    }
+
+    @Test
     void throwsBeforeFetchingATokenOrCallingTheApi() {
       Hlthstack client = TestSupport.client(server);
       Map<String, Object> body = with(bodyExample("createAppointment"), "customers", list(with(customer(), "gender", "f"), customer()));

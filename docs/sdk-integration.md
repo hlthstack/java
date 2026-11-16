@@ -243,9 +243,9 @@ Method names follow the spec's `operationId`s, grouped by area.
 | | `create(body)` | createAppointment | `POST /api/appointments` |
 | | `get(query)` | getAppointment | `GET /api/appointments` |
 | | `rescheduleBooking(bookingId, body)` | rescheduleBooking | `PATCH /api/bookings/{booking_id}/reschedule` |
-| | `cancelBooking(bookingId)` | cancelBooking | `PATCH /api/bookings/{booking_id}/cancel` |
+| | `cancelBooking(bookingId[, body])` | cancelBooking | `PATCH /api/bookings/{booking_id}/cancel` |
 | | `reschedule(appointmentId, body)` | rescheduleAppointment | `PATCH /api/appointments/{appointment_id}/reschedule` |
-| | `cancel(appointmentId)` | cancelAppointment | `PATCH /api/appointments/{appointment_id}/cancel` |
+| | `cancel(appointmentId[, body])` | cancelAppointment | `PATCH /api/appointments/{appointment_id}/cancel` |
 | | `getVoucher(appointmentId)` → `byte[]` | getAppointmentVoucher | `GET /api/appointments/{appointment_id}/voucher` |
 | | `getReports(appointmentId)` | getAppointmentReports | `GET /api/appointments/{appointment_id}/reports` |
 | | `getLabResults(appointmentId)` | getAppointmentLabResults | `GET /api/appointments/{appointment_id}/lab_results` |

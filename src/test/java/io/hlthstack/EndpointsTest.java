@@ -184,6 +184,10 @@ class EndpointsTest {
         h -> h.appointments().reschedule(apt, map("appointment_date_time", "2030-01-16T02:30:00Z", "provider_id", 1002)),
         "PATCH", "/api/appointments/APT1A2B3C4D5/reschedule", null, "{\"appointment_date_time\":\"2030-01-16T02:30:00Z\",\"provider_id\":1002}"));
     c.add(new Case("cancelAppointment", h -> h.appointments().cancel(apt), "PATCH", "/api/appointments/APT1A2B3C4D5/cancel", null, null));
+    c.add(new Case("cancelAppointment", h -> h.appointments().cancel(apt, map("reason", "Member is travelling")),
+        "PATCH", "/api/appointments/APT1A2B3C4D5/cancel", null, "{\"reason\":\"Member is travelling\"}"));
+    c.add(new Case("cancelBooking", h -> h.appointments().cancelBooking("EKI0000000001700000000", map("reason", "Duplicate booking")),
+        "PATCH", "/api/bookings/EKI0000000001700000000/cancel", null, "{\"reason\":\"Duplicate booking\"}"));
     c.add(new Case("getAppointmentVoucher", h -> h.appointments().getVoucher(apt), "GET", "/api/appointments/APT1A2B3C4D5/voucher", null, null));
     c.add(new Case("getAppointmentReports", h -> h.appointments().getReports(apt), "GET", "/api/appointments/APT1A2B3C4D5/reports", null, null));
     c.add(new Case("getAppointmentLabResults", h -> h.appointments().getLabResults(apt),

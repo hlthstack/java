@@ -70,8 +70,8 @@ public final class BookHealthCheckup {
     api.patch("/api/appointments/" + appointmentId + "/reschedule").json(Map.of("appointment_date_time", slotTime)).send();
   }
 
-  static void cancel(ApiClient api, String appointmentId) throws IOException, InterruptedException {
-    api.patch("/api/appointments/" + appointmentId + "/cancel").send();
+  static void cancel(ApiClient api, String appointmentId, String reason) throws IOException, InterruptedException {
+    api.patch("/api/appointments/" + appointmentId + "/cancel").json(Map.of("reason", reason)).send();
   }
 
   static void downloadVoucher(ApiClient api, String appointmentId, Path path) throws IOException, InterruptedException {
@@ -109,7 +109,7 @@ public final class BookHealthCheckup {
     reschedule(api, appointmentId, slots.get(1));
     simulateConfirmation(api, appointmentId);
     downloadVoucher(api, appointmentId, voucher);
-    cancel(api, appointmentId);
+    cancel(api, appointmentId, "Example clean-up");
     System.out.println("rescheduled, confirmed, voucher saved to " + voucher + ", cancelled");
   }
 

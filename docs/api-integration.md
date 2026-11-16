@@ -369,14 +369,15 @@ static void reschedule(ApiClient api, String appointmentId, String slotTime) thr
 
 ### 6. Cancel
 
-`PATCH /api/appointments/{appointment_id}/cancel` (or `PATCH /api/bookings/{booking_id}/cancel`),
-with no body. Rescheduling and cancelling are allowed until 30 minutes before the slot (home
+`PATCH /api/appointments/{appointment_id}/cancel` (or `PATCH /api/bookings/{booking_id}/cancel`).
+Optional body: `reason` (up to 255 characters), recorded as the cancellation reason; without
+it hlthstack records `Cancelled by your booking partner`. Rescheduling and cancelling are allowed until 30 minutes before the slot (home
 collection: or until a phlebotomist is assigned, whichever is first). Booking-level calls can
 succeed partially: `success` and `failed` in the response list appointment ids.
 
 ```java
-static void cancel(ApiClient api, String appointmentId) throws IOException, InterruptedException {
-  api.patch("/api/appointments/" + appointmentId + "/cancel").send();
+static void cancel(ApiClient api, String appointmentId, String reason) throws IOException, InterruptedException {
+  api.patch("/api/appointments/" + appointmentId + "/cancel").json(Map.of("reason", reason)).send();
 }
 ```
 
@@ -405,7 +406,9 @@ static void simulateConfirmation(ApiClient api, String appointmentId) throws IOE
 
 After the visit, `GET /api/appointments/{appointment_id}/reports` and
 `GET /api/appointments/{appointment_id}/lab_results` return the reports and structured
-results.
+results. Report links are signed
+URLs that expire 5 minutes after they're issued: download the files right away, and fetch fresh
+links when you need them again.
 
 ## Consultations and ePharmacy
 

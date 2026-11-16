@@ -73,13 +73,26 @@ public final class Appointments {
         options);
   }
 
-  /** {@code PATCH /api/bookings/{booking_id}/cancel} (cancelBooking). May partially succeed. */
+  /**
+   * {@code PATCH /api/bookings/{booking_id}/cancel} (cancelBooking). May partially succeed. The
+   * optional body takes {@code reason} (up to 255 characters); without it hlthstack records
+   * "Cancelled by your booking partner".
+   */
   public JsonNode cancelBooking(String bookingId) {
     return cancelBooking(bookingId, RequestOptions.NONE);
   }
 
   public JsonNode cancelBooking(String bookingId, RequestOptions options) {
     return transport.json(new Transport.Call("cancelBooking", "PATCH", "/api/bookings/{booking_id}/cancel", bookingId), options);
+  }
+
+  public JsonNode cancelBooking(String bookingId, Map<String, ?> body) {
+    return cancelBooking(bookingId, body, RequestOptions.NONE);
+  }
+
+  public JsonNode cancelBooking(String bookingId, Map<String, ?> body, RequestOptions options) {
+    return transport.json(
+        new Transport.Call("cancelBooking", "PATCH", "/api/bookings/{booking_id}/cancel", bookingId).body(body), options);
   }
 
   /** {@code PATCH /api/appointments/{appointment_id}/reschedule} (rescheduleAppointment). */
@@ -94,7 +107,11 @@ public final class Appointments {
         options);
   }
 
-  /** {@code PATCH /api/appointments/{appointment_id}/cancel} (cancelAppointment). */
+  /**
+   * {@code PATCH /api/appointments/{appointment_id}/cancel} (cancelAppointment). The optional body
+   * takes {@code reason} (up to 255 characters); without it hlthstack records "Cancelled by your
+   * booking partner".
+   */
   public JsonNode cancel(String appointmentId) {
     return cancel(appointmentId, RequestOptions.NONE);
   }
@@ -102,6 +119,17 @@ public final class Appointments {
   public JsonNode cancel(String appointmentId, RequestOptions options) {
     return transport.json(
         new Transport.Call("cancelAppointment", "PATCH", "/api/appointments/{appointment_id}/cancel", appointmentId),
+        options);
+  }
+
+  public JsonNode cancel(String appointmentId, Map<String, ?> body) {
+    return cancel(appointmentId, body, RequestOptions.NONE);
+  }
+
+  public JsonNode cancel(String appointmentId, Map<String, ?> body, RequestOptions options) {
+    return transport.json(
+        new Transport.Call("cancelAppointment", "PATCH", "/api/appointments/{appointment_id}/cancel", appointmentId)
+            .body(body),
         options);
   }
 

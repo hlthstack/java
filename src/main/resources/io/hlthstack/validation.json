@@ -413,6 +413,15 @@
         }
       },
       "required" : [ "booking_id" ]
+    },
+    "body" : {
+      "type" : "object",
+      "properties" : {
+        "reason" : {
+          "type" : "string",
+          "maxLength" : 255
+        }
+      }
     }
   },
   "rescheduleAppointment" : {
@@ -506,6 +515,15 @@
         }
       },
       "required" : [ "appointment_id" ]
+    },
+    "body" : {
+      "type" : "object",
+      "properties" : {
+        "reason" : {
+          "type" : "string",
+          "maxLength" : 255
+        }
+      }
     }
   },
   "getAppointmentVoucher" : {
