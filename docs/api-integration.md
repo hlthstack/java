@@ -1,11 +1,15 @@
 # Plain REST API integration guide (Java)
 
 Call the hlthstack partner REST API directly from Java 11+ with the JDK's
-`java.net.http.HttpClient`, without the `io.hlthstack` SDK. JSON is read and written with
-[Jackson](https://github.com/FasterXML/jackson-databind) (any JSON library works the same
-way); the webhook receiver uses the JDK's built-in `com.sun.net.httpserver`. You handle token
-refresh, input checks and error parsing yourself; this guide shows small helpers for each. To
-let a library do that for you, see the [SDK integration guide](sdk-integration.md).
+`java.net.http.HttpClient`, without the `io.hlthstack` SDK.
+
+- JSON is read and written with [Jackson](https://github.com/FasterXML/jackson-databind) (any
+  JSON library works the same way).
+- The webhook receiver uses the JDK's built-in `com.sun.net.httpserver`.
+- You handle token refresh, input checks and error parsing yourself; this guide shows small
+  helpers for each.
+
+To let a library do that for you, see the [SDK integration guide](sdk-integration.md).
 
 Every snippet here comes from the runnable classes in [`examples/api/`](../examples/api/),
 which are tested against a mock server in
@@ -24,13 +28,17 @@ which are tested against a mock server in
 The full reference is the [API reference](https://developers.hlthstack.io) (built from the
 [OpenAPI spec](https://github.com/hlthstack/integration-guide/blob/main/openapi/openapi.yaml))
 and the [integration guide](https://github.com/hlthstack/integration-guide/tree/main/docs).
-To try a call before writing code, use the [Postman docs](https://documenter.getpostman.com/view/32733686/2sBYHbrFjt): choose **Run in Postman**,
-pick the staging environment and enter your credentials.
 
+> [!TIP]
+> To try a call before writing code, use the
+> [Postman docs](https://documenter.getpostman.com/view/32733686/2sBYHbrFjt): choose
+> **Run in Postman**, pick the staging environment and enter your credentials.
+
+> [!CAUTION]
 > **Server-side only.** Your API credentials, access tokens, entity secret key and webhook
 > secret must never be shipped to a browser or mobile app. Call hlthstack from your backend.
 
-Contents:
+**On this page**
 
 1. [Environments and base URLs](#environments-and-base-urls)
 2. [Authentication](#authentication)
@@ -69,6 +77,8 @@ export HLTHSTACK_BASE_URL=https://staging-api.hlthstack.io                   # o
 
 (`exec:java` runs a class with the project's classpath, which includes Jackson. In your own
 project, copy `ApiClient.java` and add `com.fasterxml.jackson.core:jackson-databind`.)
+
+How `ApiClient` sets the base URL and timeouts:
 
 ```java
 static final String DEFAULT_BASE_URL = "https://staging-api.hlthstack.io";
@@ -158,12 +168,14 @@ token = new AccessToken(
 
 ### Request helper
 
-`api.get(path)`, `api.post(path)` and `api.patch(path)` start a request with the bearer token
-and the [entity headers](#multi-entity-partners). Add `.query(name, value)`, a `.json(body)` or
-`.multipart(form)` body and `.header(name, value)`, then `.send()` for the parsed JSON or
-`.sendForBytes()` for the raw body (vouchers are PDFs). On a `401` it fetches a new token and
-retries **once**; any other non-2xx response throws an [`ApiException`](#errors) with the
-parsed body:
+1. `api.get(path)`, `api.post(path)` and `api.patch(path)` start a request with the bearer
+   token and the [entity headers](#multi-entity-partners).
+2. Add `.query(name, value)`, a `.json(body)` or `.multipart(form)` body and
+   `.header(name, value)`.
+3. Call `.send()` for the parsed JSON or `.sendForBytes()` for the raw body (vouchers are PDFs).
+
+On a `401` it fetches a new token and retries **once**; any other non-2xx response throws an
+[`ApiException`](#errors) with the parsed body:
 
 ```java
 /** Sends the request and returns the parsed JSON (an empty object for an empty body). */
@@ -201,6 +213,8 @@ static JsonNode parseBody(byte[] bytes) {
 ```
 
 The body is kept as bytes, so the retry after a 401 can send it again (including uploads).
+
+Listing providers with the helper:
 
 ```java
 ApiClient api = ApiClient.fromEnvironment();
@@ -246,11 +260,18 @@ api.get("/api/appointments")
     .send();
 ```
 
-Header problems return `400 {"message": "..."}`: `API-ENTITY-ID header cannot be blank`,
-`API-SECRET-KEY header cannot be blank`, `Invalid Entity`,
-`API integration not enabled for this entity` or `API-SECRET-KEY is invalid`. An entity whose
-contract is not enabled for API booking gets
-`400 {"message": "The entity is not enabled for API booking."}` on every call. See
+Header problems return `400 {"message": "..."}` with one of these messages:
+
+- `API-ENTITY-ID header cannot be blank`
+- `API-SECRET-KEY header cannot be blank`
+- `Invalid Entity`
+- `API integration not enabled for this entity`
+- `API-SECRET-KEY is invalid`
+
+An entity whose contract is not enabled for API booking gets
+`400 {"message": "The entity is not enabled for API booking."}` on every call.
+
+**See also:**
 [authentication](https://github.com/hlthstack/integration-guide/blob/main/docs/authentication.md).
 
 ## Book a health checkup end to end
@@ -263,9 +284,12 @@ an appointment (`appointment_id`). From
 
 ### 1. List providers
 
-`GET /api/providers` with `service_name`, `package_ids` (comma-separated) and `pincode`, or
-`latitude` + `longitude` instead of the pincode. Optional: `radius`, `page`, `per_page` (at
-most 50), `plan_id`, `auto_allocate_provider`. Results are sorted by distance.
+`GET /api/providers`. Results are sorted by distance.
+
+- **Required:** `service_name`, `package_ids` (comma-separated) and `pincode`, or
+  `latitude` + `longitude` instead of the pincode.
+- **Optional:** `radius`, `page`, `per_page` (at most 50), `plan_id`,
+  `auto_allocate_provider`.
 
 ```java
 static List<JsonNode> listProviders(ApiClient api) throws IOException, InterruptedException {
@@ -282,11 +306,13 @@ static List<JsonNode> listProviders(ApiClient api) throws IOException, Interrupt
 
 ### 2. Get slots
 
-`GET /api/providers/{provider_id}/{benefit_type}/slots` with `package_ids` and `pincode`. Pass
-`booking_date` (`YYYY-MM-DD`) for one day, or omit it for up to `count_days` days (default
-14). Read `booking_slots[].slots[]` and book with a slot's `utc_slot_time`. A `booking_date`
-before the provider's first bookable date (from its `slot_lead_time` and `timezone`) returns
-400.
+`GET /api/providers/{provider_id}/{benefit_type}/slots` with `package_ids` and `pincode`.
+
+- Pass `booking_date` (`YYYY-MM-DD`) for one day, or omit it for up to `count_days` days
+  (default 14).
+- Read `booking_slots[].slots[]` and book with a slot's `utc_slot_time`.
+- A `booking_date` before the provider's first bookable date (from its `slot_lead_time` and
+  `timezone`) returns 400.
 
 ```java
 static List<String> availableSlots(ApiClient api, long providerId) throws IOException, InterruptedException {
@@ -307,10 +333,12 @@ static List<String> availableSlots(ApiClient api, long providerId) throws IOExce
 
 ### 3. Create the booking
 
-`POST /api/appointments`. `appointment_type` is `inclinic` or `home_collection`; home
-collection also needs `address` (`address_line_one`, `address_line_two`, `city`, `state`,
-`country`, `pincode`, `latitude`, `longitude`). Optional: `plan_id`, `customer_plan_id` or
-`subscription_id`, `api_partner_order_id`.
+`POST /api/appointments`.
+
+- `appointment_type` is `inclinic` or `home_collection`.
+- Home collection also needs `address` (`address_line_one`, `address_line_two`, `city`,
+  `state`, `country`, `pincode`, `latitude`, `longitude`).
+- **Optional:** `plan_id`, `customer_plan_id` or `subscription_id`, `api_partner_order_id`.
 
 ```java
 static JsonNode createBooking(ApiClient api, long providerId, String slotTime) throws IOException, InterruptedException {
@@ -337,13 +365,16 @@ The response has `booking_id`, `status` and `customers[].appointment_id`:
   `new` and becomes `confirmed` when the provider confirms it (you get a webhook).
 - `status: "payment_pending"` with `payment_link`: the member must pay the rest.
 
-Don't blindly retry a failed or timed-out create: check with step 4 or your webhooks whether
-the booking exists first (see [Errors](#errors)).
+> [!WARNING]
+> Don't blindly retry a failed or timed-out create: check with step 4 or your webhooks whether
+> the booking exists first (see [Errors](#errors)).
 
 ### 4. Get the booking
 
 `GET /api/appointments?booking_id=...` returns every appointment in the booking; add
 `appointment_id` for one. Each appointment has the same shape as the webhook payload.
+
+Fetching the booking and printing each appointment's status:
 
 ```java
 static JsonNode getBooking(ApiClient api, String bookingId) throws IOException, InterruptedException {
@@ -359,9 +390,11 @@ for (JsonNode appointment : getBooking(api, booking.get("booking_id").asText()).
 
 `PATCH /api/appointments/{appointment_id}/reschedule` (or
 `PATCH /api/bookings/{booking_id}/reschedule` for the whole booking) with a new
-`appointment_date_time`. Add `provider_id` to move to another provider (not allowed once the
-appointment is confirmed at its provider), and for home collection `address` together with
-`provider_id` to change the address.
+`appointment_date_time`.
+
+- Add `provider_id` to move to another provider (not allowed once the appointment is
+  confirmed at its provider).
+- For home collection, send `address` together with `provider_id` to change the address.
 
 ```java
 static void reschedule(ApiClient api, String appointmentId, String slotTime) throws IOException, InterruptedException {
@@ -372,10 +405,15 @@ static void reschedule(ApiClient api, String appointmentId, String slotTime) thr
 ### 6. Cancel
 
 `PATCH /api/appointments/{appointment_id}/cancel` (or `PATCH /api/bookings/{booking_id}/cancel`).
-Optional body: `reason` (up to 255 characters), recorded as the cancellation reason; without
-it hlthstack records `Cancelled by your booking partner`. Rescheduling and cancelling are allowed until 30 minutes before the slot (home
-collection: or until a phlebotomist is assigned, whichever is first). Booking-level calls can
-succeed partially: `success` and `failed` in the response list appointment ids.
+
+- Optional body: `reason` (up to 255 characters), recorded as the cancellation reason; without
+  it hlthstack records `Cancelled by your booking partner`.
+- Booking-level calls can succeed partially: `success` and `failed` in the response list
+  appointment ids.
+
+> [!IMPORTANT]
+> Rescheduling and cancelling are allowed until 30 minutes before the slot (home collection:
+> or until a phlebotomist is assigned, whichever is first).
 
 ```java
 static void cancel(ApiClient api, String appointmentId, String reason) throws IOException, InterruptedException {
@@ -408,9 +446,11 @@ static void simulateConfirmation(ApiClient api, String appointmentId) throws IOE
 
 After the visit, `GET /api/appointments/{appointment_id}/reports` and
 `GET /api/appointments/{appointment_id}/lab_results` return the reports and structured
-results. Report links are signed
-URLs that expire 5 minutes after they're issued: download the files right away, and fetch fresh
-links when you need them again.
+results.
+
+> [!WARNING]
+> Report links are signed URLs that expire 5 minutes after they're issued: download the files
+> right away, and fetch fresh links when you need them again.
 
 ## Consultations and ePharmacy
 
@@ -465,10 +505,18 @@ static JsonNode bookInclinicConsultation(ApiClient api) throws IOException, Inte
 }
 ```
 
-Track it with `GET /api/consultations/inclinic_consultation/{appointment_id}`, reschedule with
-`PATCH /api/consultations/{appointment_id}/reschedule`, cancel with
-`PATCH /api/consultations/{appointment_id}/cancel`. Audio and video specialist consultations
-(scheduled or priority) use `/api/consultations/specialist_consultation`. See the
+After booking:
+
+| Action | Endpoint |
+|---|---|
+| Track it | `GET /api/consultations/inclinic_consultation/{appointment_id}` |
+| Reschedule | `PATCH /api/consultations/{appointment_id}/reschedule` |
+| Cancel | `PATCH /api/consultations/{appointment_id}/cancel` |
+
+Audio and video specialist consultations (scheduled or priority) use
+`/api/consultations/specialist_consultation`.
+
+**See also:** the
 [consultations guide](https://github.com/hlthstack/integration-guide/blob/main/docs/consultations.md).
 
 ### ePharmacy: cart to order
@@ -510,13 +558,16 @@ static JsonNode placeOrder(ApiClient api, long medicineId) throws IOException, I
 }
 ```
 
-Query parameters on ePharmacy endpoints use bracketed names such as
-`customer_details[api_customer_id]`. Prescription-only medicines (`rx_required: true`) need a
-prescription on the cart (`prescription_urls`, or `prescription_files[]` uploaded as
-multipart). `POST /api/epharmacy/orders/payment_details` quotes the amounts before you order
-(note: `selected_delivery_option` there, `delivery_option` when ordering). In the
-partner-collected payment flow, confirm the payment with
-`POST /api/epharmacy/orders/{order_id}/confirm`. See the
+- Query parameters on ePharmacy endpoints use bracketed names such as
+  `customer_details[api_customer_id]`.
+- Prescription-only medicines (`rx_required: true`) need a prescription on the cart
+  (`prescription_urls`, or `prescription_files[]` uploaded as multipart).
+- `POST /api/epharmacy/orders/payment_details` quotes the amounts before you order (note:
+  `selected_delivery_option` there, `delivery_option` when ordering).
+- In the partner-collected payment flow, confirm the payment with
+  `POST /api/epharmacy/orders/{order_id}/confirm`.
+
+**See also:** the
 [ePharmacy guide](https://github.com/hlthstack/integration-guide/blob/main/docs/epharmacy.md).
 
 ## File uploads
@@ -563,10 +614,14 @@ public static final class Multipart {
 }
 ```
 
-Prescription digitization (`POST /api/prescriptions/digitize`) takes exactly one customer as
-`customers[][name]`, `customers[][api_customer_id]`, `customers[][mobile_number]`,
-`customers[][gender]` and `customers[][dob]`, an optional `plan_id`, and one or more `files[]`
-(JPEG, PNG or PDF, each up to 10 MB). From
+Prescription digitization (`POST /api/prescriptions/digitize`) takes:
+
+- exactly one customer as `customers[][name]`, `customers[][api_customer_id]`,
+  `customers[][mobile_number]`, `customers[][gender]` and `customers[][dob]`;
+- an optional `plan_id`;
+- one or more `files[]` (JPEG, PNG or PDF, each up to 10 MB).
+
+From
 [`UploadPrescription.java`](../examples/api/UploadPrescription.java):
 
 ```java
@@ -596,14 +651,18 @@ static JsonNode waitForDigitization(ApiClient api, String requestId, Duration in
 }
 ```
 
-Send a unique `Idempotency-Key` per upload so a retry returns the original request instead of
-creating a duplicate. `completed` and `partial` results carry the extracted `items` and a
-ready `cart_id`.
+> [!IMPORTANT]
+> Send a unique `Idempotency-Key` per upload so a retry returns the original request instead
+> of creating a duplicate.
 
-Other uploads follow the same pattern: consultation documents
-(`POST /api/consultations/{appointment_id}/upload_documents`, as `files[][name]` +
-`files[][value]` pairs) and cart prescriptions (`PATCH /api/epharmacy/cart` with
-`customer_details[api_customer_id]` and `prescription_files[]`, each under 7 MB).
+`completed` and `partial` results carry the extracted `items` and a ready `cart_id`.
+
+Other uploads follow the same pattern:
+
+- consultation documents (`POST /api/consultations/{appointment_id}/upload_documents`, as
+  `files[][name]` + `files[][value]` pairs);
+- cart prescriptions (`PATCH /api/epharmacy/cart` with `customer_details[api_customer_id]` and
+  `prescription_files[]`, each under 7 MB).
 
 ## Pre-registration
 
@@ -620,9 +679,12 @@ and its own token:
    `API-ENTITY-ID` / `API-SECRET-KEY` headers are not used; each row names its company with
    `company_id`.
 
-A missing, invalid or expired token returns `401` with an empty body, as does any token once
-your company's contract has ended; `403` with an empty body means the account's role may not
-use this API. In `ApiClient` a second `AccessToken` holds this token, and
+| Status | Meaning |
+|---|---|
+| `401`, empty body | A missing, invalid or expired token, or any token once your company's contract has ended |
+| `403`, empty body | The account's role may not use this API |
+
+In `ApiClient` a second `AccessToken` holds this token, and
 `api.preRegistration(method, path)` sends it:
 
 ```java
@@ -638,9 +700,16 @@ public Request preRegistration(String method, String path) {
 ```
 
 Each write takes at most **250 rows** (`employees` and `dependants` together) and returns a
-`request_id`; poll `GET /v1/corporate/pre_registrations/{request_id}/status` until `status` is
-`completed`, then read `success_records` and `failure_records`. On create, **every required
-key must be present in every row**, even when empty: a row missing one is dropped silently.
+`request_id`. Then:
+
+1. Poll `GET /v1/corporate/pre_registrations/{request_id}/status` until `status` is
+   `completed`.
+2. Read `success_records` and `failure_records`.
+
+> [!WARNING]
+> On create, **every required key must be present in every row**, even when empty: a row
+> missing one is dropped silently.
+
 From [`PreRegistration.java`](../examples/api/PreRegistration.java), where `employee()`
 returns a row with every required key (`employee_code`, `company_id`, `first_name`,
 `last_name`, `email`, `date_of_birth` as `DD-MM-YYYY`, `gender`, `mobile_number`, `vip`,
@@ -677,7 +746,7 @@ Map<String, List<?>> deactivate = Map.of("employees", List.of("jane.doe@example.
 waitFor(api, submit(api, "/v1/corporate/pre_registrations/deactivate", deactivate), interval);
 ```
 
-Field rules, dependants, voluntary plans and row errors are in the
+**See also:** field rules, dependants, voluntary plans and row errors are in the
 [pre-registration guide](https://github.com/hlthstack/integration-guide/blob/main/docs/pre-registration.md).
 
 ## Errors
@@ -746,6 +815,8 @@ static List<String> errorMessages(JsonNode body) {
 }
 ```
 
+Catching API and network errors around a call:
+
 ```java
 try {
   BookHealthCheckup.reschedule(api, "APT1A2B3C4D5", "2030-01-16T02:30:00Z");
@@ -766,7 +837,7 @@ try {
 | 422 | Business rule or processing failure, or an unexpected error |
 | 5xx | Server error, or a provider's system couldn't be reached |
 
-Retrying:
+### Retrying
 
 - Retry 5xx, 409 and network errors with backoff. Don't retry other 4xx responses unchanged:
   fix the request.
@@ -778,8 +849,8 @@ Retrying:
 - Some ePharmacy responses are HTTP 200 with `"success": false` nested inside (for example
   fulfillment options); check those flags.
 
-See [errors](https://github.com/hlthstack/integration-guide/blob/main/docs/errors.md) for the
-common messages and their fixes.
+**See also:** [errors](https://github.com/hlthstack/integration-guide/blob/main/docs/errors.md)
+for the common messages and their fixes.
 
 ## Validating inputs yourself
 
@@ -803,14 +874,18 @@ input rules yourself. The most important ones:
 
 The full list is in the
 [OpenAPI spec](https://github.com/hlthstack/integration-guide/blob/main/openapi/openapi.yaml):
-each request schema encodes the per-field checks (`required`, `enum`, `pattern`, `minLength`,
-`maximum`, `minItems`, ...), and rules that span fields or depend on today's date are listed on
-each operation under `x-hlthstack-rules` (kinds described in `x-hlthstack-rule-kinds`). Dates
-are compared with today's date in India (IST). Checks that need stored data (plan benefits,
-wallet balances, slot availability, provider capabilities) are made only by the server.
 
-The SDK runs all of these checks automatically before sending a request and reports every
-problem at once ([SDK validation](sdk-integration.md#validation)).
+- Each request schema encodes the per-field checks (`required`, `enum`, `pattern`,
+  `minLength`, `maximum`, `minItems`, ...).
+- Rules that span fields or depend on today's date are listed on each operation under
+  `x-hlthstack-rules` (kinds described in `x-hlthstack-rule-kinds`).
+- Dates are compared with today's date in India (IST).
+- Checks that need stored data (plan benefits, wallet balances, slot availability, provider
+  capabilities) are made only by the server.
+
+> [!TIP]
+> The SDK runs all of these checks automatically before sending a request and reports every
+> problem at once ([SDK validation](sdk-integration.md#validation)).
 
 ## Webhooks
 
@@ -827,7 +902,9 @@ and does **not** cover the body, so check all three:
 
 [`WebhookReceiver.java`](../examples/api/WebhookReceiver.java) does this with the standard
 library only (`javax.crypto.Mac`, no JWT package), and serves the endpoint with the JDK's
-`com.sun.net.httpserver.HttpServer`:
+`com.sun.net.httpserver.HttpServer`.
+
+The signature check:
 
 ```java
 static final long TOLERANCE_SECONDS = 300;
@@ -881,6 +958,8 @@ static JsonNode verifySignature(String signature, JsonNode body, String secret) 
 }
 ```
 
+The HTTP endpoint that calls it:
+
 ```java
 /** Starts the receiver; {@code enqueue} gets each verified body. */
 static HttpServer start(int port, String secret, Consumer<JsonNode> enqueue) throws IOException {
@@ -920,6 +999,8 @@ static HttpServer start(int port, String secret, Consumer<JsonNode> enqueue) thr
 }
 ```
 
+Run the receiver locally:
+
 ```bash
 HLTHSTACK_WEBHOOK_SECRET=... PORT=8080 ./mvnw -q test-compile exec:java -Dexec.mainClass=WebhookReceiver
 ```
@@ -936,10 +1017,18 @@ Payload shapes and the claims per event are in the
 
 ## Moving to the SDK
 
-The SDK wraps everything above: token caching and refresh (including the pre-registration
-token), entity headers, one method per endpoint, multipart uploads, exception classes with the
-messages extracted, input validation and webhook verification. Install it from GitHub through
-JitPack ([SDK guide: Install](sdk-integration.md#install)).
+The SDK wraps everything above:
+
+- token caching and refresh (including the pre-registration token);
+- entity headers;
+- one method per endpoint;
+- multipart uploads;
+- exception classes with the messages extracted;
+- input validation;
+- webhook verification.
+
+Install it from GitHub through JitPack ([SDK guide: Install](sdk-integration.md#install)).
+Each plain API call and its SDK equivalent:
 
 | Plain API | SDK |
 |---|---|

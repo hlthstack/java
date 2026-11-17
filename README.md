@@ -1,13 +1,22 @@
 # hlthstack for Java
 
-Integrate Java backends with the [hlthstack](https://www.hlthstack.io/) partner REST API: book
-health checkups and lab tests, in-clinic and online doctor consultations and ePharmacy orders
-for your members, read their benefit wallets, pre-register members and their dependants, and
-verify the webhooks hlthstack sends you.
+[![Release](https://img.shields.io/github/v/release/hlthstack/java)](https://github.com/hlthstack/java/releases)
+[![CI](https://github.com/hlthstack/java/actions/workflows/ci.yml/badge.svg)](https://github.com/hlthstack/java/actions/workflows/ci.yml)
+[![JitPack](https://jitpack.io/v/hlthstack/java.svg)](https://jitpack.io/#hlthstack/java)
+[![License: MIT](https://img.shields.io/github/license/hlthstack/java)](LICENSE)
+
+Integrate Java backends with the [hlthstack](https://www.hlthstack.io/) partner REST API:
+
+- book health checkups and lab tests, in-clinic and online doctor consultations and ePharmacy
+  orders for your members;
+- read their benefit wallets;
+- pre-register members and their dependants;
+- verify the webhooks hlthstack sends you.
 
 This repository holds the Java SDK (`io.hlthstack`, Java 11+) and two integration guides: one
 for the SDK, one for calling the REST API directly with `java.net.http.HttpClient`.
 
+> [!CAUTION]
 > **Server-side only.** Your API credentials, access tokens, entity secret key and webhook
 > secret must never be shipped to a browser or mobile app. Call hlthstack from your backend.
 
@@ -15,22 +24,27 @@ for the SDK, one for calling the REST API directly with `java.net.http.HttpClien
 
 | | SDK | Plain REST API |
 |---|---|---|
-| Guide | [docs/sdk-integration.md](docs/sdk-integration.md) | [docs/api-integration.md](docs/api-integration.md) |
-| Install | From this GitHub repository via JitPack (Maven or Gradle) | Nothing from hlthstack: the JDK's `HttpClient` plus a JSON library (the guide uses Jackson) |
-| Access tokens | Fetched, cached and refreshed for you; one retry after a 401 | You fetch, cache and refresh them (the guide has a helper) |
-| Input validation | Every request checked against the API's rules before it is sent | You check inputs yourself, or rely on the API's 400/422 responses |
-| Requests and responses | `Map` bodies and query parameters with the API's field names; responses as Jackson `JsonNode` | Whatever you build and parse |
-| Errors | One exception class per status, with the messages extracted | You parse the API's several error shapes |
-| Webhooks | `Webhooks.verifySignature` | Verify the HS256 JWT yourself (`javax.crypto.Mac`, shown in the guide) |
-| Dependencies | Jackson databind | None beyond your JSON library |
+| **Guide** | [SDK integration guide](docs/sdk-integration.md) | [Plain REST API guide](docs/api-integration.md) |
+| **Install** | From this GitHub repository via JitPack (Maven or Gradle) | Nothing from hlthstack: the JDK's `HttpClient` plus a JSON library (the guide uses Jackson) |
+| **Access tokens** | Fetched, cached and refreshed for you; one retry after a 401 | You fetch, cache and refresh them (the guide has a helper) |
+| **Input validation** | Every request checked against the API's rules before it is sent | You check inputs yourself, or rely on the API's 400/422 responses |
+| **Requests and responses** | `Map` bodies and query parameters with the API's field names; responses as Jackson `JsonNode` | Whatever you build and parse |
+| **Errors** | One exception class per status, with the messages extracted | You parse the API's several error shapes |
+| **Webhooks** | `Webhooks.verifySignature` | Verify the HS256 JWT yourself (`javax.crypto.Mac`, shown in the guide) |
+| **Dependencies** | Jackson databind | None beyond your JSON library |
 
-Pick the SDK unless you can't add a dependency or want full control over every request. Both
-talk to the same API with the same JSON, so you can start with one and move to the other.
+> [!TIP]
+> Pick the SDK unless you can't add a dependency or want full control over every request.
+> Both talk to the same API with the same JSON, so you can start with one and move to the
+> other.
 
 ## SDK quickstart
 
-Add JitPack and the dependency (Maven shown; Gradle and building from source are in the
-[SDK guide](docs/sdk-integration.md#install)). Pin a release tag or a commit:
+### 1. Install
+
+Add JitPack and the dependency. Pin a release tag or a commit.
+
+**Maven** (`pom.xml`):
 
 ```xml
 <repositories>
@@ -46,6 +60,13 @@ Add JitPack and the dependency (Maven shown; Gradle and building from source are
   <version>v1.0.2</version>
 </dependency>
 ```
+
+**Gradle**, Gradle Kotlin DSL and building from source are in the
+[SDK guide](docs/sdk-integration.md#install).
+
+### 2. Call the API
+
+Build a client for staging and list the providers for a health checkup package:
 
 ```java
 import com.fasterxml.jackson.databind.JsonNode;
@@ -71,24 +92,28 @@ multi-entity partners, uploads, pre-registration, validation, errors and webhook
 
 ## Plain REST API quickstart
 
+Fetch an access token from staging with HTTP Basic auth:
+
 ```bash
 curl -u "$HLTHSTACK_USERNAME:$HLTHSTACK_PASSWORD" \
   https://staging-api.hlthstack.io/api/get-access-token
 ```
 
-Then send `Authorization: Bearer <access_token>` on every other call. The
-[plain REST API guide](docs/api-integration.md) walks through token caching, a full booking
+Then send `Authorization: Bearer <access_token>` on every other call.
+
+The [plain REST API guide](docs/api-integration.md) walks through token caching, a full booking
 with `java.net.http.HttpClient` and Jackson, uploads, pre-registration, errors, input checks
 and webhook verification. Runnable classes are in [`examples/api/`](examples/api/).
 
 ## Reference
 
-- Getting started (access to go-live): https://github.com/hlthstack/integration-guide/blob/main/docs/getting-started.md
-- API reference: https://developers.hlthstack.io
-- Postman docs, with code samples and a Run in Postman button: https://documenter.getpostman.com/view/32733686/2sBYHbrFjt
-- REST API guides: https://github.com/hlthstack/integration-guide
-- OpenAPI spec: https://github.com/hlthstack/integration-guide/blob/main/openapi/openapi.yaml
-  (a copy is in [`openapi/openapi.yaml`](openapi/openapi.yaml))
+| Resource | Link |
+|---|---|
+| Getting started (access to go-live) | [integration-guide/docs/getting-started.md](https://github.com/hlthstack/integration-guide/blob/main/docs/getting-started.md) |
+| API reference | [developers.hlthstack.io](https://developers.hlthstack.io) |
+| Postman docs, with code samples and a Run in Postman button | [documenter.getpostman.com](https://documenter.getpostman.com/view/32733686/2sBYHbrFjt) |
+| REST API guides | [hlthstack/integration-guide](https://github.com/hlthstack/integration-guide) |
+| OpenAPI spec | [openapi/openapi.yaml](https://github.com/hlthstack/integration-guide/blob/main/openapi/openapi.yaml) (a copy is in [`openapi/openapi.yaml`](openapi/openapi.yaml)) |
 
 | Environment | Base URL |
 |---|---|
@@ -96,6 +121,8 @@ and webhook verification. Runnable classes are in [`examples/api/`](examples/api
 | Staging | `https://staging-api.hlthstack.io` |
 
 ## Development
+
+Build and test with the Maven Wrapper:
 
 ```bash
 ./mvnw verify    # compile for Java 11, run the tests (needs only a JDK 11+)
@@ -105,4 +132,4 @@ See [Development](docs/sdk-integration.md#development) in the SDK guide.
 
 ## License
 
-MIT
+MIT. See [`LICENSE`](LICENSE).

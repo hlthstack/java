@@ -16,16 +16,34 @@ the [plain REST API guide](api-integration.md).
 - One exception class per HTTP status, with the messages pulled out of every error shape.
 - Webhook signature verification.
 
+> [!CAUTION]
 > **Server-side only.** Your API credentials, access tokens, entity secret key and webhook
 > secret must never be shipped to a browser or mobile app. Call hlthstack from your backend.
 
-REST API reference and guides: https://github.com/hlthstack/integration-guide
+REST API reference and guides:
+[hlthstack/integration-guide](https://github.com/hlthstack/integration-guide).
+
+**On this page**
+
+1. [Install](#install)
+2. [Quickstart](#quickstart)
+3. [Configuration](#configuration): [environments](#environments),
+   [authentication](#authentication), [multi-entity partners](#multi-entity-partners),
+   [per-request options](#per-request-options)
+4. [API](#api): [file uploads](#file-uploads), [binary responses](#binary-responses),
+   [pre-registration](#pre-registration), [staging simulators](#staging-simulators)
+5. [Validation](#validation)
+6. [Errors](#errors): [retrying](#retrying)
+7. [Webhooks](#webhooks)
+8. [Development](#development)
 
 ## Install
 
 Install straight from this GitHub repository through [JitPack](https://jitpack.io), which
-builds the library from a tag or commit the first time someone asks for it. Pin a release tag
-or a commit hash so your builds are reproducible.
+builds the library from a tag or commit the first time someone asks for it.
+
+> [!IMPORTANT]
+> Pin a release tag or a commit hash so your builds are reproducible.
 
 **Maven** (`pom.xml`):
 
@@ -59,7 +77,7 @@ dependencies {
 }
 ```
 
-Gradle Kotlin DSL: `maven("https://jitpack.io")` and
+**Gradle Kotlin DSL**: `maven("https://jitpack.io")` and
 `implementation("com.github.hlthstack:java:v1.0.2")`.
 
 **From source**, into your local Maven repository (needs only a JDK 11+; the Maven Wrapper
@@ -74,10 +92,14 @@ cd hlthstack-java
 then depend on `io.hlthstack:hlthstack:1.0.2` (in Gradle, add `mavenLocal()` to the
 repositories).
 
-The package is `io.hlthstack` (automatic module name `io.hlthstack`). Publishing to Maven
-Central is planned; the GitHub install keeps working when it lands.
+The package is `io.hlthstack` (automatic module name `io.hlthstack`).
+
+> [!NOTE]
+> Publishing to Maven Central is planned; the GitHub install keeps working when it lands.
 
 ## Quickstart
+
+Find a provider, pick a slot, book a health checkup and read the booking back:
 
 ```java
 import com.fasterxml.jackson.databind.JsonNode;
@@ -149,6 +171,8 @@ The same code is in [`examples/sdk/Quickstart.java`](../examples/sdk/Quickstart.
 
 ## Configuration
 
+Every builder setting, with its default or purpose:
+
 ```java
 Hlthstack client = Hlthstack.builder()
     .username("example-user")             // issued by hlthstack; not needed for pre-registration only
@@ -166,8 +190,10 @@ Hlthstack client = Hlthstack.builder()
     .build();
 ```
 
-`build()` throws `IllegalArgumentException` when neither the API credentials nor the
-pre-registration credentials are complete, or when `entityId` is set without `secretKey`.
+`build()` throws `IllegalArgumentException` when:
+
+- neither the API credentials nor the pre-registration credentials are complete, or
+- `entityId` is set without `secretKey`.
 
 Create one client per set of credentials and share it: it is thread-safe and holds the access
 tokens. Credentials, the entity secret key and webhook secrets are server-side secrets.
@@ -195,10 +221,14 @@ You never call the token endpoint yourself. The client:
 `getAccessToken(true)` forces a new one.
 
 `client.preRegistration()` uses separate credentials (`preRegistrationUsername` /
-`preRegistrationPassword`) and its own token: the client requests it from
-`GET /api/pre_registration/access-token` (its `expires_at` looks like
-`2026-01-15 07:16:21 UTC`), sends it raw in `X-EKINCARE-KEY`, and caches, shares and refreshes
-it the same way. `client.preRegistration().getAccessToken()` returns it.
+`preRegistrationPassword`) and its own token. The client:
+
+- requests it from `GET /api/pre_registration/access-token` (its `expires_at` looks like
+  `2026-01-15 07:16:21 UTC`);
+- sends it raw in `X-EKINCARE-KEY`;
+- caches, shares and refreshes it the same way.
+
+`client.preRegistration().getAccessToken()` returns it.
 
 ### Multi-entity partners
 
@@ -212,9 +242,9 @@ client.appointments().create(params, RequestOptions.builder().entityId("1003").s
 client.appointments().create(params, RequestOptions.builder().withoutEntity().build());      // the credentials' own entity
 ```
 
-An entity id without a secret key (on the client or the call) throws
-`IllegalArgumentException` before anything is sent. Pre-registration calls never send entity
-headers: each row names its `company_id`.
+- An entity id without a secret key (on the client or the call) throws
+  `IllegalArgumentException` before anything is sent.
+- Pre-registration calls never send entity headers: each row names its `company_id`.
 
 ### Per-request options
 
@@ -233,61 +263,98 @@ RequestOptions options = RequestOptions.builder()
 
 ## API
 
-Method names follow the spec's `operationId`s, grouped by area.
+One table per area of the client. Method names follow the spec's `operationId`s.
 
-| Area | Method | operationId | Endpoint |
-|---|---|---|---|
-| `auth()` | `getAccessToken()` | getAccessToken | `GET /api/get-access-token` |
-| `appointments()` | `listProviders(query)` | listProviders | `GET /api/providers` |
-| | `listSlots(providerId, benefitType, query)` | listSlots | `GET /api/providers/{provider_id}/{benefit_type}/slots` |
-| | `create(body)` | createAppointment | `POST /api/appointments` |
-| | `get(query)` | getAppointment | `GET /api/appointments` |
-| | `rescheduleBooking(bookingId, body)` | rescheduleBooking | `PATCH /api/bookings/{booking_id}/reschedule` |
-| | `cancelBooking(bookingId[, body])` | cancelBooking | `PATCH /api/bookings/{booking_id}/cancel` |
-| | `reschedule(appointmentId, body)` | rescheduleAppointment | `PATCH /api/appointments/{appointment_id}/reschedule` |
-| | `cancel(appointmentId[, body])` | cancelAppointment | `PATCH /api/appointments/{appointment_id}/cancel` |
-| | `getVoucher(appointmentId)` → `byte[]` | getAppointmentVoucher | `GET /api/appointments/{appointment_id}/voucher` |
-| | `getReports(appointmentId)` | getAppointmentReports | `GET /api/appointments/{appointment_id}/reports` |
-| | `getLabResults(appointmentId)` | getAppointmentLabResults | `GET /api/appointments/{appointment_id}/lab_results` |
-| `consultations()` | `listInclinicProviders(query)` | listInclinicConsultationProviders | `GET /api/consultations/inclinic_consultation/providers` |
-| | `listSpecialistProviders(query)` | listSpecialistConsultationProviders | `GET /api/consultations/specialist_consultation/providers` |
-| | `listSlots(providerId, benefitType, query)` | listSlots | same as `appointments().listSlots` |
-| | `createInclinic(body)` | createInclinicConsultation | `POST /api/consultations/inclinic_consultation` |
-| | `createSpecialist(body)` | createSpecialistConsultation | `POST /api/consultations/specialist_consultation` |
-| | `getInclinic(appointmentId)` | getInclinicConsultation | `GET /api/consultations/inclinic_consultation/{appointment_id}` |
-| | `getSpecialist(appointmentId)` | getSpecialistConsultation | `GET /api/consultations/specialist_consultation/{appointment_id}` |
-| | `reschedule(appointmentId, body)` | rescheduleConsultation | `PATCH /api/consultations/{appointment_id}/reschedule` |
-| | `cancel(appointmentId)` | cancelConsultation | `PATCH /api/consultations/{appointment_id}/cancel` |
-| | `getSummaryAndPrescription(appointmentId)` | getConsultationSummaryAndPrescription | `GET /api/consultations/{appointment_id}/summary_and_prescription` |
-| | `getVoucher(appointmentId)` → `byte[]` | getConsultationVoucher | `GET /api/consultations/{appointment_id}/voucher` |
-| | `uploadDocuments(appointmentId, documents)` | uploadConsultationDocuments | `POST /api/consultations/{appointment_id}/upload_documents` (multipart) |
-| `pharmacy()` | `searchMedicines(query)` | searchMedicines | `GET /api/epharmacy/medicines/search` |
-| | `digitizePrescription(form)` | digitizePrescription | `POST /api/prescriptions/digitize` (multipart) |
-| | `getPrescriptionDigitization(requestId)` | getPrescriptionDigitization | `GET /api/prescriptions/digitize/{request_id}` |
-| | `getCart(query)` | getCart | `GET /api/epharmacy/cart` |
-| | `updateCart(params)` | updateCart | `PATCH /api/epharmacy/cart` (JSON, or multipart with `prescription_files`) |
-| | `getFulfillmentOptions(query)` | getFulfillmentOptions | `GET /api/epharmacy/fulfillment_options` |
-| | `getOrderPaymentDetails(body)` | getOrderPaymentDetails | `POST /api/epharmacy/orders/payment_details` |
-| | `createOrder(body)` | createOrder | `POST /api/epharmacy/orders` |
-| | `listOrders(query)` | listOrders | `GET /api/epharmacy/orders` |
-| | `getOrder(orderId, query)` | getOrder | `GET /api/epharmacy/orders/{order_id}` |
-| | `cancelOrder(orderId, body)` | cancelOrder | `PATCH /api/epharmacy/orders/{order_id}/cancel` |
-| | `confirmOrder(orderId, body)` | confirmOrder | `POST /api/epharmacy/orders/{order_id}/confirm` |
-| `wallet()` | `getCustomerWallet(companySlug, query)` | getCustomerWallet | `GET /api/{company_slug}/customers/wallet` |
-| | `listCustomerPlans(companySlug, query)` | listCustomerPlans | `GET /api/{company_slug}/customers/plans` |
-| `preRegistration()` | `getAccessToken()` | getPreRegistrationAccessToken | `GET /api/pre_registration/access-token` |
-| | `create(body)` | createPreRegistrations | `POST /v1/corporate/pre_registrations` |
-| | `update(body)` | updatePreRegistrations | `POST /v1/corporate/pre_registrations/update` |
-| | `deactivate(body)` | deactivatePreRegistrations | `POST /v1/corporate/pre_registrations/deactivate` |
-| | `getStatus(requestId)` | getPreRegistrationStatus | `GET /v1/corporate/pre_registrations/{request_id}/status` |
-| `testing()` (staging only) | `simulateAppointmentStatus(appointmentId, body)` | simulateAppointmentStatus | `POST /api/appointments/{appointment_id}/update_status` |
-| | `simulateConsultationStatus(appointmentId, body)` | simulateConsultationStatus | `PATCH /api/consultations/{appointment_id}/update_status` |
-| | `simulateOrderStatus(orderId, body)` | simulateOrderStatus | `PATCH /api/epharmacy/orders/{order_id}/update_status` |
+**`auth()`**
 
-Path parameters are positional (`providerId` is a `long`, the others `String`s, URL-encoded
-for you). Query parameters and JSON bodies are a `Map<String, ?>` with the API's own field
-names; values may be `String`, numbers, `Boolean`, `List`, nested `Map`, `null` or a Jackson
-`JsonNode`. In queries:
+| Method | operationId | Endpoint |
+|---|---|---|
+| `getAccessToken()` | getAccessToken | `GET /api/get-access-token` |
+
+**`appointments()`**
+
+| Method | operationId | Endpoint |
+|---|---|---|
+| `listProviders(query)` | listProviders | `GET /api/providers` |
+| `listSlots(providerId, benefitType, query)` | listSlots | `GET /api/providers/{provider_id}/{benefit_type}/slots` |
+| `create(body)` | createAppointment | `POST /api/appointments` |
+| `get(query)` | getAppointment | `GET /api/appointments` |
+| `rescheduleBooking(bookingId, body)` | rescheduleBooking | `PATCH /api/bookings/{booking_id}/reschedule` |
+| `cancelBooking(bookingId[, body])` | cancelBooking | `PATCH /api/bookings/{booking_id}/cancel` |
+| `reschedule(appointmentId, body)` | rescheduleAppointment | `PATCH /api/appointments/{appointment_id}/reschedule` |
+| `cancel(appointmentId[, body])` | cancelAppointment | `PATCH /api/appointments/{appointment_id}/cancel` |
+| `getVoucher(appointmentId)` → `byte[]` | getAppointmentVoucher | `GET /api/appointments/{appointment_id}/voucher` |
+| `getReports(appointmentId)` | getAppointmentReports | `GET /api/appointments/{appointment_id}/reports` |
+| `getLabResults(appointmentId)` | getAppointmentLabResults | `GET /api/appointments/{appointment_id}/lab_results` |
+
+**`consultations()`**
+
+| Method | operationId | Endpoint |
+|---|---|---|
+| `listInclinicProviders(query)` | listInclinicConsultationProviders | `GET /api/consultations/inclinic_consultation/providers` |
+| `listSpecialistProviders(query)` | listSpecialistConsultationProviders | `GET /api/consultations/specialist_consultation/providers` |
+| `listSlots(providerId, benefitType, query)` | listSlots | same as `appointments().listSlots` |
+| `createInclinic(body)` | createInclinicConsultation | `POST /api/consultations/inclinic_consultation` |
+| `createSpecialist(body)` | createSpecialistConsultation | `POST /api/consultations/specialist_consultation` |
+| `getInclinic(appointmentId)` | getInclinicConsultation | `GET /api/consultations/inclinic_consultation/{appointment_id}` |
+| `getSpecialist(appointmentId)` | getSpecialistConsultation | `GET /api/consultations/specialist_consultation/{appointment_id}` |
+| `reschedule(appointmentId, body)` | rescheduleConsultation | `PATCH /api/consultations/{appointment_id}/reschedule` |
+| `cancel(appointmentId)` | cancelConsultation | `PATCH /api/consultations/{appointment_id}/cancel` |
+| `getSummaryAndPrescription(appointmentId)` | getConsultationSummaryAndPrescription | `GET /api/consultations/{appointment_id}/summary_and_prescription` |
+| `getVoucher(appointmentId)` → `byte[]` | getConsultationVoucher | `GET /api/consultations/{appointment_id}/voucher` |
+| `uploadDocuments(appointmentId, documents)` | uploadConsultationDocuments | `POST /api/consultations/{appointment_id}/upload_documents` (multipart) |
+
+**`pharmacy()`**
+
+| Method | operationId | Endpoint |
+|---|---|---|
+| `searchMedicines(query)` | searchMedicines | `GET /api/epharmacy/medicines/search` |
+| `digitizePrescription(form)` | digitizePrescription | `POST /api/prescriptions/digitize` (multipart) |
+| `getPrescriptionDigitization(requestId)` | getPrescriptionDigitization | `GET /api/prescriptions/digitize/{request_id}` |
+| `getCart(query)` | getCart | `GET /api/epharmacy/cart` |
+| `updateCart(params)` | updateCart | `PATCH /api/epharmacy/cart` (JSON, or multipart with `prescription_files`) |
+| `getFulfillmentOptions(query)` | getFulfillmentOptions | `GET /api/epharmacy/fulfillment_options` |
+| `getOrderPaymentDetails(body)` | getOrderPaymentDetails | `POST /api/epharmacy/orders/payment_details` |
+| `createOrder(body)` | createOrder | `POST /api/epharmacy/orders` |
+| `listOrders(query)` | listOrders | `GET /api/epharmacy/orders` |
+| `getOrder(orderId, query)` | getOrder | `GET /api/epharmacy/orders/{order_id}` |
+| `cancelOrder(orderId, body)` | cancelOrder | `PATCH /api/epharmacy/orders/{order_id}/cancel` |
+| `confirmOrder(orderId, body)` | confirmOrder | `POST /api/epharmacy/orders/{order_id}/confirm` |
+
+**`wallet()`**
+
+| Method | operationId | Endpoint |
+|---|---|---|
+| `getCustomerWallet(companySlug, query)` | getCustomerWallet | `GET /api/{company_slug}/customers/wallet` |
+| `listCustomerPlans(companySlug, query)` | listCustomerPlans | `GET /api/{company_slug}/customers/plans` |
+
+**`preRegistration()`**
+
+| Method | operationId | Endpoint |
+|---|---|---|
+| `getAccessToken()` | getPreRegistrationAccessToken | `GET /api/pre_registration/access-token` |
+| `create(body)` | createPreRegistrations | `POST /v1/corporate/pre_registrations` |
+| `update(body)` | updatePreRegistrations | `POST /v1/corporate/pre_registrations/update` |
+| `deactivate(body)` | deactivatePreRegistrations | `POST /v1/corporate/pre_registrations/deactivate` |
+| `getStatus(requestId)` | getPreRegistrationStatus | `GET /v1/corporate/pre_registrations/{request_id}/status` |
+
+**`testing()` (staging only)**
+
+| Method | operationId | Endpoint |
+|---|---|---|
+| `simulateAppointmentStatus(appointmentId, body)` | simulateAppointmentStatus | `POST /api/appointments/{appointment_id}/update_status` |
+| `simulateConsultationStatus(appointmentId, body)` | simulateConsultationStatus | `PATCH /api/consultations/{appointment_id}/update_status` |
+| `simulateOrderStatus(orderId, body)` | simulateOrderStatus | `PATCH /api/epharmacy/orders/{order_id}/update_status` |
+
+**Arguments**
+
+- Path parameters are positional (`providerId` is a `long`, the others `String`s, URL-encoded
+  for you).
+- Query parameters and JSON bodies are a `Map<String, ?>` with the API's own field names.
+- Values may be `String`, numbers, `Boolean`, `List`, nested `Map`, `null` or a Jackson
+  `JsonNode`.
+
+In queries:
 
 - a `List` is sent comma-separated: `"package_ids", List.of(1001, 1002)` is
   `package_ids=1001,1002`;
@@ -296,9 +363,11 @@ names; values may be `String`, numbers, `Boolean`, `List`, nested `Map`, `null` 
   `customer_details[api_customer_id]=CUST1001`;
 - `null` values are left out.
 
-Responses are the parsed JSON as a `JsonNode` (an empty object for an empty body). Many fields
-are present only in some states, so read them with `path(...)` / `at(...)`, which never return
-null. The full request and response shapes are in the
+**Responses** are the parsed JSON as a `JsonNode` (an empty object for an empty body). Many
+fields are present only in some states, so read them with `path(...)` / `at(...)`, which never
+return null.
+
+The full request and response shapes are in the
 [OpenAPI spec](https://github.com/hlthstack/integration-guide/blob/main/openapi/openapi.yaml).
 
 ### File uploads
@@ -341,8 +410,13 @@ String requestId = accepted.get("request_id").asText(); // poll getPrescriptionD
 
 `updateCart` with `prescription_files` (each under 7 MB) is sent as `multipart/form-data`
 with `customer_details[api_customer_id]`, `plan_id` and `prescription_files[]`, the only
-multipart fields the API defines. Send other cart changes in a separate call; combining them
-throws `IllegalArgumentException`.
+multipart fields the API defines.
+
+> [!WARNING]
+> Send other cart changes in a separate call; combining them throws
+> `IllegalArgumentException`.
+
+Attaching a prescription to the member's cart:
 
 ```java
 client.pharmacy().updateCart(Map.of(
@@ -362,8 +436,14 @@ Files.write(Paths.get("voucher.pdf"), pdf);
 ### Pre-registration
 
 Register, update and deactivate members and their dependants in bulk (at most 250 rows per
-call, `employees` and `dependants` together). Each write returns a `request_id`; poll
-`getStatus` until `status` is `completed`, then read `success_records` and `failure_records`:
+call, `employees` and `dependants` together):
+
+1. Each write returns a `request_id`.
+2. Poll `getStatus` until `status` is `completed`.
+3. Read `success_records` and `failure_records`.
+
+A client with pre-registration credentials, then a create, a status poll, an update and a
+deactivation:
 
 ```java
 Hlthstack client = Hlthstack.builder()
@@ -402,9 +482,14 @@ client.preRegistration().update(Map.of("employees", List.of(Map.of("email", "jan
 client.preRegistration().deactivate(Map.of("employees", List.of("jane.doe@example.com")));
 ```
 
-On `create`, every key the spec marks required must be present in each row, even when empty:
-the API silently drops rows that miss one. `update` takes the identifier and only the fields to
-change; `deactivate` takes employee emails and dependant mobile numbers. See the
+> [!WARNING]
+> On `create`, every key the spec marks required must be present in each row, even when empty:
+> the API silently drops rows that miss one.
+
+- `update` takes the identifier and only the fields to change.
+- `deactivate` takes employee emails and dependant mobile numbers.
+
+**See also:** the
 [pre-registration guide](https://github.com/hlthstack/integration-guide/blob/main/docs/pre-registration.md).
 
 ### Staging simulators
@@ -412,6 +497,8 @@ change; `deactivate` takes employee emails and dependant mobile numbers. See the
 `client.testing()` moves bookings and orders through their lifecycle on **staging** and fires
 the same webhooks real updates would. These routes don't exist in production, and the client
 throws `IllegalStateException` instead of calling them when its environment is `PRODUCTION`.
+
+Moving an appointment, a consultation and a pharmacy order to a new status:
 
 ```java
 Hlthstack staging = Hlthstack.builder().username(username).password(password).environment(Environment.STAGING).build();
@@ -444,6 +531,8 @@ found:
 Query, path and multipart values travel as text, so `"pincode", 500081` and
 `"latitude", "17.44"` are both accepted and checked as the server will read them.
 
+Catching the exception and printing each problem:
+
 ```java
 try {
   client.appointments().create(booking);
@@ -454,6 +543,8 @@ try {
   }
 }
 ```
+
+Sample output:
 
 ```text
 customers[0].mobile_number | pattern | must match ^[0-9]{10}$
@@ -466,15 +557,17 @@ customers[1].dob | relative_date | must be on or before 2025-11-12 (at least 1 y
 `e.getMessage()` lists the same problems on one line:
 `Invalid createAppointment request (5 problems): customers[0].mobile_number: must match ^[0-9]{10}$; ...`.
 
-`path()` uses the method's own field names (`customers[0].api_customer_id`,
-`documents[0].file`); it is empty when a problem concerns the request as a whole (for example
-"send at least one of api_customer_id, customer_id"). `rule()` is the JSON Schema keyword
-(`required`, `pattern`, ...) or the spec's rule kind (`required_if`, `unique_by`, ...) that
-failed. `ValidationException` extends `HlthstackException`; its `statusCode()` is 0.
+| Accessor | Returns |
+|---|---|
+| `path()` | The method's own field names (`customers[0].api_customer_id`, `documents[0].file`); empty when a problem concerns the request as a whole (for example "send at least one of api_customer_id, customer_id") |
+| `rule()` | The JSON Schema keyword (`required`, `pattern`, ...) or the spec's rule kind (`required_if`, `unique_by`, ...) that failed |
 
-Checks that need data stored on the server, such as plan benefits, package ids, slot
-availability, whether an order or appointment exists, or whether an amount matches the order,
-are still made by the API and come back as HTTP errors.
+`ValidationException` extends `HlthstackException`; its `statusCode()` is 0.
+
+> [!NOTE]
+> Checks that need data stored on the server, such as plan benefits, package ids, slot
+> availability, whether an order or appointment exists, or whether an amount matches the
+> order, are still made by the API and come back as HTTP errors.
 
 **Escape hatch.** If the API accepts something this version of the library rejects, turn
 validation off for one call or for the client, and please open an issue:
@@ -502,6 +595,8 @@ one of these (invalid input is rejected earlier with a `ValidationException`):
 | `ApiConnectionException` | no response: network error, timeout (`timedOut()`), or interrupted |
 | `ValidationException` | the request breaks the API's input rules; nothing was sent |
 
+What each exception carries:
+
 ```java
 try {
   client.appointments().reschedule("APT1A2B3C4D5", Map.of("appointment_date_time", "2030-01-16T02:30:00Z"));
@@ -523,22 +618,35 @@ The API uses several error body shapes (`{errors: {field: [...]}}`, `{errors: {m
 `{error}`, plain text, or an empty body). `body()` keeps the original; `messages()` flattens
 all of them into strings.
 
-Some ePharmacy responses are HTTP 200 with a nested `success: false` (for example
-`getFulfillmentOptions`); those are returned, not thrown, so check the flags.
+> [!WARNING]
+> Some ePharmacy responses are HTTP 200 with a nested `success: false` (for example
+> `getFulfillmentOptions`); those are returned, not thrown, so check the flags.
 
-The client does not retry automatically, except once after a `401`. Retry 5xx, 409 and
-connection errors with backoff yourself, but don't blindly retry `appointments().create` or
-consultation creation: check with `appointments().get` or your webhooks first. Prescription
-digitization (with the same idempotency key) and `confirmOrder` are safe to retry. See the
+### Retrying
+
+The client does not retry automatically, except once after a `401`.
+
+- Retry 5xx, 409 and connection errors with backoff yourself.
+- Don't blindly retry `appointments().create` or consultation creation: check with
+  `appointments().get` or your webhooks first.
+- Prescription digitization (with the same idempotency key) and `confirmOrder` are safe to
+  retry.
+
+**See also:** the
 [errors guide](https://github.com/hlthstack/integration-guide/blob/main/docs/errors.md).
 
 ## Webhooks
 
 hlthstack signs every webhook with an HS256 JWT in the `Signature` header. The JWT does not
-cover the body, so `Webhooks.verifySignature` checks the signature, that the ids in the claims
-match the body (`order_id` and `webhook_type` for pharmacy events, `request_id` for
-prescription digitization, otherwise `appointment_id` and `booking_id`), and that the
-`timestamp` claim is within 5 minutes of now:
+cover the body, so `Webhooks.verifySignature` checks:
+
+1. the signature;
+2. that the ids in the claims match the body (`order_id` and `webhook_type` for pharmacy
+   events, `request_id` for prescription digitization, otherwise `appointment_id` and
+   `booking_id`);
+3. that the `timestamp` claim is within 5 minutes of now.
+
+Verifying a delivery in your HTTP handler:
 
 ```java
 import io.hlthstack.VerifiedWebhook;
@@ -569,13 +677,24 @@ current time (`Instant`).
 | `digitization_results` | Prescription digitization finished (`request_id`) |
 
 Appointment and pharmacy events share a URL: appointment payloads have `appointment_id`,
-pharmacy payloads have `order_id`. Delivery is at-least-once and unordered: deduplicate, use
-`claims().get("timestamp")` to drop older events, and treat `appointments().get` /
-`pharmacy().getOrder` as the source of truth. A complete receiver on the JDK's built-in HTTP
-server is in [`examples/api/WebhookReceiver.java`](../examples/api/WebhookReceiver.java). See
-the [webhooks guide](https://github.com/hlthstack/integration-guide/blob/main/docs/webhooks.md).
+pharmacy payloads have `order_id`.
+
+> [!IMPORTANT]
+> Delivery is at-least-once and unordered:
+>
+> - deduplicate;
+> - use `claims().get("timestamp")` to drop older events;
+> - treat `appointments().get` / `pharmacy().getOrder` as the source of truth.
+
+A complete receiver on the JDK's built-in HTTP server is in
+[`examples/api/WebhookReceiver.java`](../examples/api/WebhookReceiver.java).
+
+**See also:** the
+[webhooks guide](https://github.com/hlthstack/integration-guide/blob/main/docs/webhooks.md).
 
 ## Development
+
+Build and run every test:
 
 ```bash
 ./mvnw verify    # compiles for Java 11 (--release 11) and runs every test
@@ -593,13 +712,17 @@ spec, regenerate it:
 ./mvnw -q test-compile exec:java@generate-validation
 ```
 
-The generator (`src/test/java/io/hlthstack/codegen/BuildValidation.java`) stops with an error
-when the spec uses a schema keyword, format, parameter location or rule kind the validator
-(`src/main/java/io/hlthstack/Validator.java`) does not implement: extend them together. Rules
-are described in prose in the spec, so each one is restated as parameters in
-`src/test/resources/io/hlthstack/codegen/rules.yaml`; the generator fails until a changed or
-new rule is restated there. `GeneratedValidationTest` fails when `validation.json` is out of
-date, and `EndpointsTest` fails if an operation has no method.
+What keeps the validator and the spec in step:
+
+- The generator (`src/test/java/io/hlthstack/codegen/BuildValidation.java`) stops with an
+  error when the spec uses a schema keyword, format, parameter location or rule kind the
+  validator (`src/main/java/io/hlthstack/Validator.java`) does not implement: extend them
+  together.
+- Rules are described in prose in the spec, so each one is restated as parameters in
+  `src/test/resources/io/hlthstack/codegen/rules.yaml`; the generator fails until a changed or
+  new rule is restated there.
+- `GeneratedValidationTest` fails when `validation.json` is out of date.
+- `EndpointsTest` fails if an operation has no method.
 
 `src/test/java/PlainApiExamplesTest.java` runs the plain REST API examples in
 [`examples/api/`](../examples/api/) against a local mock server, so the
