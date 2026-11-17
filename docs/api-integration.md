@@ -21,9 +21,11 @@ which are tested against a mock server in
 | [`PreRegistration.java`](../examples/api/PreRegistration.java) | Register, update and deactivate members |
 | [`WebhookReceiver.java`](../examples/api/WebhookReceiver.java) | Webhook endpoint with signature verification |
 
-The full reference is the
-[OpenAPI spec](https://github.com/hlthstack/integration-guide/blob/main/openapi/openapi.yaml)
+The full reference is the [API reference](https://developers.hlthstack.io) (built from the
+[OpenAPI spec](https://github.com/hlthstack/integration-guide/blob/main/openapi/openapi.yaml))
 and the [integration guide](https://github.com/hlthstack/integration-guide/tree/main/docs).
+To try a call before writing code, use the [Postman docs](https://documenter.getpostman.com/view/32733686/2sBYHbqvwh): choose **Run in Postman**,
+pick the staging environment and enter your credentials.
 
 > **Server-side only.** Your API credentials, access tokens, entity secret key and webhook
 > secret must never be shipped to a browser or mobile app. Call hlthstack from your backend.
