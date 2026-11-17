@@ -41,7 +41,7 @@ or a commit hash so your builds are reproducible.
   <dependency>
     <groupId>com.github.hlthstack</groupId>
     <artifactId>java</artifactId>
-    <version>v1.0.0</version>
+    <version>v1.0.1</version>
   </dependency>
 </dependencies>
 ```
@@ -55,12 +55,12 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.hlthstack:java:v1.0.0'
+    implementation 'com.github.hlthstack:java:v1.0.1'
 }
 ```
 
 Gradle Kotlin DSL: `maven("https://jitpack.io")` and
-`implementation("com.github.hlthstack:java:v1.0.0")`.
+`implementation("com.github.hlthstack:java:v1.0.1")`.
 
 **From source**, into your local Maven repository (needs only a JDK 11+; the Maven Wrapper
 downloads Maven):
@@ -71,7 +71,7 @@ cd hlthstack-java
 ./mvnw install          # add -DskipTests to skip the tests
 ```
 
-then depend on `io.hlthstack:hlthstack:1.0.0` (in Gradle, add `mavenLocal()` to the
+then depend on `io.hlthstack:hlthstack:1.0.1` (in Gradle, add `mavenLocal()` to the
 repositories).
 
 The package is `io.hlthstack` (automatic module name `io.hlthstack`). Publishing to Maven
