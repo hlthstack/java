@@ -43,7 +43,7 @@ Add JitPack and the dependency (Maven shown; Gradle and building from source are
 <dependency>
   <groupId>com.github.hlthstack</groupId>
   <artifactId>java</artifactId>
-  <version>TAG-OR-COMMIT</version>
+  <version>v1.0.0</version>
 </dependency>
 ```
 
