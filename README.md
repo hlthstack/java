@@ -80,8 +80,9 @@ Hlthstack client = Hlthstack.builder()
     .environment(Environment.STAGING)
     .build();
 
-JsonNode providers = client.appointments().listProviders(
-    Map.of("service_name", "ahc", "package_ids", "1001", "pincode", "500081"));
+// Use the package id and plan id issued to you at onboarding.
+JsonNode providers = client.appointments().listProviders(Map.of(
+    "service_name", "ahc", "package_ids", "YOUR_PACKAGE_ID", "plan_id", "YOUR_PLAN_ID", "pincode", "500081"));
 for (JsonNode provider : providers.path("providers")) {
   System.out.println(provider.path("provider_id") + " " + provider.path("provider_name").asText());
 }
