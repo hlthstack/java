@@ -127,7 +127,7 @@ public final class Consultations {
 
   /**
    * {@code GET /api/consultations/{appointment_id}/summary_and_prescription}
-   * (getConsultationSummaryAndPrescription). File links expire after a few minutes.
+   * (getConsultationSummaryAndPrescription). File links expire after 5 minutes.
    */
   public JsonNode getSummaryAndPrescription(String appointmentId) {
     return getSummaryAndPrescription(appointmentId, RequestOptions.NONE);
